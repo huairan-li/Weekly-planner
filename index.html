@@ -13,6 +13,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Weekly Planner" />
   <link rel="apple-touch-icon" href="icon-192.svg" />
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -42,7 +44,15 @@
 
     .container { max-width: 480px; margin: 0 auto; }
 
-    /* ── Header ──────────────────────────────── */
+    /* ── Page Header ─────────────────────────── */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 26px;
+    }
+
     h1 {
       font-family: 'Lora', Georgia, "Palatino Linotype", serif;
       font-size: 1.6rem;
@@ -55,9 +65,59 @@
     .week-label {
       font-size: 0.78rem;
       color: var(--muted);
-      margin-bottom: 26px;
       letter-spacing: 0.01em;
     }
+
+    /* ── Auth Controls ───────────────────────── */
+    .auth-controls { flex-shrink: 0; padding-top: 5px; }
+
+    .btn-google {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 13px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.79rem;
+      font-family: inherit;
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-google:hover { background: var(--surface-in); border-color: var(--muted); }
+
+    .auth-user-info { display: flex; align-items: center; gap: 7px; }
+
+    .auth-avatar {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .auth-initials {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: var(--surface-in);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700; color: var(--muted);
+      flex-shrink: 0;
+    }
+    .auth-name {
+      font-size: 0.76rem; color: var(--muted);
+      max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .btn-signout {
+      background: none; border: none;
+      border-bottom: 1px solid transparent;
+      color: var(--muted); font-size: 0.7rem;
+      cursor: pointer; font-family: inherit; padding: 2px 0;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .btn-signout:hover { color: var(--danger); border-bottom-color: var(--danger); }
 
     /* ── Cards ───────────────────────────────── */
     .card {
@@ -70,323 +130,203 @@
     }
 
     .card-title {
-      font-size: 0.65rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--muted);
-      margin-bottom: 14px;
+      font-size: 0.65rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--muted); margin-bottom: 14px;
     }
 
     /* ── Targets ─────────────────────────────── */
-    .activity-row {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      margin-bottom: 9px;
-    }
-
-    .activity-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      opacity: 0.9;
-    }
-
+    .activity-row { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+    .activity-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; opacity: 0.9; }
     .activity-name {
-      flex: 1;
-      font-size: 0.875rem;
-      font-weight: 400;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      color: var(--text);
+      flex: 1; font-size: 0.875rem; font-weight: 400;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text);
     }
-
     .activity-target-input {
-      width: 56px;
-      padding: 5px 7px;
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      font-size: 0.82rem;
-      font-family: inherit;
-      background: var(--surface-in);
-      color: var(--text);
-      outline: none;
-      text-align: right;
-      transition: border-color 0.15s;
+      width: 56px; padding: 5px 7px;
+      border: 1px solid var(--border); border-radius: 5px;
+      font-size: 0.82rem; font-family: inherit;
+      background: var(--surface-in); color: var(--text);
+      outline: none; text-align: right; transition: border-color 0.15s;
     }
-
     .activity-target-input:focus { border-color: var(--accent); }
-
-    .activity-target-label {
-      font-size: 0.7rem;
-      color: var(--muted);
-      flex-shrink: 0;
-    }
-
+    .activity-target-label { font-size: 0.7rem; color: var(--muted); flex-shrink: 0; }
     .btn-icon {
-      background: none;
-      border: none;
-      color: var(--border);
-      cursor: pointer;
-      font-size: 0.68rem;
-      padding: 3px 5px;
-      border-radius: 4px;
-      line-height: 1;
-      transition: color 0.15s;
-      flex-shrink: 0;
+      background: none; border: none; color: var(--border);
+      cursor: pointer; font-size: 0.68rem; padding: 3px 5px;
+      border-radius: 4px; line-height: 1; transition: color 0.15s; flex-shrink: 0;
     }
-
     .btn-icon:hover { color: var(--danger); }
 
-    .add-activity-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid var(--border-faint);
-    }
-
+    .add-activity-row { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-faint); }
     .add-activity-row input {
-      flex: 1;
-      padding: 7px 10px;
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      font-size: 0.84rem;
-      font-family: inherit;
-      background: var(--surface-in);
-      color: var(--text);
-      outline: none;
-      transition: border-color 0.15s;
+      flex: 1; padding: 7px 10px;
+      border: 1px solid var(--border); border-radius: 5px;
+      font-size: 0.84rem; font-family: inherit;
+      background: var(--surface-in); color: var(--text);
+      outline: none; transition: border-color 0.15s;
     }
-
     .add-activity-row input::placeholder { color: var(--muted); opacity: 0.65; }
     .add-activity-row input:focus { border-color: var(--accent); }
-
     .btn-add {
-      padding: 7px 13px;
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      font-size: 0.79rem;
-      font-weight: 500;
-      color: var(--muted);
-      cursor: pointer;
-      font-family: inherit;
-      white-space: nowrap;
+      padding: 7px 13px; background: none;
+      border: 1px solid var(--border); border-radius: 5px;
+      font-size: 0.79rem; font-weight: 500; color: var(--muted);
+      cursor: pointer; font-family: inherit; white-space: nowrap;
       transition: border-color 0.15s, color 0.15s;
     }
-
     .btn-add:hover { border-color: var(--accent); color: var(--accent); }
 
     /* ── Stats ───────────────────────────────── */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 10px;
-    }
-
-    .stat-block {
-      background: var(--surface-in);
-      border-radius: 5px;
-      padding: 13px 12px;
-      border-left: 2px solid #ccc;
-    }
-
-    .stat-type {
-      font-family: 'Lora', Georgia, serif;
-      font-size: 0.8rem;
-      font-weight: 500;
-      margin-bottom: 9px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.78rem;
-      margin-bottom: 4px;
-      color: var(--muted);
-    }
-
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .stat-block { background: var(--surface-in); border-radius: 5px; padding: 13px 12px; border-left: 2px solid #ccc; }
+    .stat-type { font-family: 'Lora', Georgia, serif; font-size: 0.8rem; font-weight: 500; margin-bottom: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .stat-row { display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 4px; color: var(--muted); }
     .stat-row span:last-child { font-weight: 500; color: var(--text); }
-
-    .progress-bar {
-      height: 3px;
-      background: var(--border);
-      border-radius: 99px;
-      margin-top: 11px;
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      border-radius: 99px;
-      transition: width 0.5s ease;
-      opacity: 0.85;
-    }
-
-    .progress-pct {
-      font-size: 0.67rem;
-      color: var(--muted);
-      margin-top: 5px;
-      text-align: right;
-      letter-spacing: 0.03em;
-    }
+    .progress-bar { height: 3px; background: var(--border); border-radius: 99px; margin-top: 11px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 99px; transition: width 0.5s ease; opacity: 0.85; }
+    .progress-pct { font-size: 0.67rem; color: var(--muted); margin-top: 5px; text-align: right; letter-spacing: 0.03em; }
 
     /* ── Add Session ─────────────────────────── */
-    .session-form {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      align-items: end;
+    .session-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
+    .form-field label { display: block; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin-bottom: 5px; }
+    .form-field select, .form-field input {
+      width: 100%; padding: 8px 10px;
+      border: 1px solid var(--border); border-radius: 5px;
+      font-size: 0.875rem; font-family: inherit;
+      background: var(--surface-in); color: var(--text);
+      outline: none; transition: border-color 0.15s;
     }
-
-    .form-field label {
-      display: block;
-      font-size: 0.65rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.09em;
-      color: var(--muted);
-      margin-bottom: 5px;
-    }
-
-    .form-field select,
-    .form-field input {
-      width: 100%;
-      padding: 8px 10px;
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      font-size: 0.875rem;
-      font-family: inherit;
-      background: var(--surface-in);
-      color: var(--text);
-      outline: none;
-      transition: border-color 0.15s;
-    }
-
     .form-field select { appearance: none; -webkit-appearance: none; }
-
-    .form-field select:focus,
-    .form-field input:focus { border-color: var(--accent); }
-
+    .form-field select:focus, .form-field input:focus { border-color: var(--accent); }
     .session-form .btn-primary {
-      grid-column: 1 / -1;
-      padding: 10px;
-      border: none;
-      border-radius: 5px;
-      font-size: 0.84rem;
-      font-weight: 500;
-      letter-spacing: 0.025em;
-      cursor: pointer;
-      background: var(--accent);
-      color: #F5F0E8;
-      font-family: inherit;
-      transition: background 0.15s, transform 0.1s;
-      margin-top: 2px;
+      grid-column: 1 / -1; padding: 10px; border: none; border-radius: 5px;
+      font-size: 0.84rem; font-weight: 500; letter-spacing: 0.025em;
+      cursor: pointer; background: var(--accent); color: #F5F0E8;
+      font-family: inherit; transition: background 0.15s, transform 0.1s; margin-top: 2px;
     }
-
     .session-form .btn-primary:hover { background: var(--accent-dark); }
     .session-form .btn-primary:active { transform: scale(0.99); }
 
     /* ── Session Log ─────────────────────────── */
-    .session-list {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-
+    .session-list { display: flex; flex-direction: column; gap: 5px; }
     .session-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 9px 11px;
-      background: var(--surface-in);
-      border-radius: 5px;
-      border: 1px solid var(--border-faint);
-      font-size: 0.84rem;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 11px; background: var(--surface-in);
+      border-radius: 5px; border: 1px solid var(--border-faint); font-size: 0.84rem;
     }
-
-    .session-left {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      min-width: 0;
-    }
-
-    .session-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      opacity: 0.85;
-    }
-
+    .session-left { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .session-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; opacity: 0.85; }
     .session-info { font-weight: 500; color: var(--text); }
     .session-time { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
-
-    .session-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
+    .session-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .session-hours { font-weight: 600; font-size: 0.88rem; }
-
-    .btn-danger {
-      background: none;
-      border: none;
-      color: var(--border);
-      padding: 3px 6px;
-      font-size: 0.7rem;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: color 0.15s;
-    }
-
+    .btn-danger { background: none; border: none; color: var(--border); padding: 3px 6px; font-size: 0.7rem; border-radius: 4px; cursor: pointer; transition: color 0.15s; }
     .btn-danger:hover { color: var(--danger); }
 
-    .empty {
-      text-align: center;
-      color: var(--muted);
-      font-size: 0.82rem;
-      padding: 12px 0 4px;
-      font-style: italic;
-    }
-
-    .reset-row {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 12px;
-    }
-
-    .btn-reset {
-      background: none;
-      border: none;
-      color: var(--muted);
-      padding: 4px 0;
-      font-size: 0.71rem;
-      cursor: pointer;
-      font-family: inherit;
-      border-bottom: 1px solid transparent;
-      transition: color 0.15s, border-color 0.15s;
-    }
-
+    .empty { text-align: center; color: var(--muted); font-size: 0.82rem; padding: 12px 0 4px; font-style: italic; }
+    .reset-row { display: flex; justify-content: flex-end; margin-top: 12px; }
+    .btn-reset { background: none; border: none; border-bottom: 1px solid transparent; color: var(--muted); padding: 4px 0; font-size: 0.71rem; cursor: pointer; font-family: inherit; transition: color 0.15s, border-color 0.15s; }
     .btn-reset:hover { color: var(--danger); border-bottom-color: var(--danger); }
+
+    /* ── Section divider ─────────────────────── */
+    .section-divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 22px 0 14px;
+      font-size: 0.65rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted);
+    }
+    .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border-faint); }
+
+    /* ── Room card ───────────────────────────── */
+    .room-no-room { display: flex; flex-direction: column; gap: 0; }
+
+    .room-or { display: flex; align-items: center; gap: 10px; margin: 12px 0; font-size: 0.72rem; color: var(--muted); }
+    .room-or::before, .room-or::after { content: ''; flex: 1; height: 1px; background: var(--border-faint); }
+
+    .room-join-row { display: flex; gap: 8px; }
+
+    .room-code-input {
+      flex: 1; padding: 8px 12px;
+      border: 1px solid var(--border); border-radius: 5px;
+      font-size: 1rem; font-family: 'Lora', Georgia, serif; font-weight: 500;
+      background: var(--surface-in); color: var(--text);
+      outline: none; text-transform: uppercase; letter-spacing: 0.12em;
+      transition: border-color 0.15s;
+    }
+    .room-code-input:focus { border-color: var(--accent); }
+    .room-code-input::placeholder { font-family: inherit; font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em; color: var(--muted); opacity: 0.6; }
+
+    .btn-room {
+      padding: 8px 16px; border: none; border-radius: 5px;
+      font-size: 0.82rem; font-weight: 500; font-family: inherit;
+      cursor: pointer; white-space: nowrap; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .btn-room.primary { background: var(--accent); color: #F5F0E8; }
+    .btn-room.primary:hover { background: var(--accent-dark); }
+    .btn-room.secondary { background: none; border: 1px solid var(--border); color: var(--muted); }
+    .btn-room.secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    .room-code-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 5px; }
+    .room-code-display { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .room-code-value { font-family: 'Lora', Georgia, serif; font-size: 1.7rem; font-weight: 600; letter-spacing: 0.18em; color: var(--accent); }
+    .btn-copy { background: none; border: 1px solid var(--border-faint); color: var(--muted); cursor: pointer; font-size: 0.75rem; padding: 4px 9px; border-radius: 4px; font-family: inherit; transition: color 0.15s, border-color 0.15s; }
+    .btn-copy:hover { color: var(--accent); border-color: var(--accent); }
+
+    .room-members-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 8px; }
+    .room-members-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+
+    .member-pill {
+      display: flex; align-items: center; gap: 5px;
+      padding: 4px 9px 4px 5px;
+      background: var(--surface-in); border: 1px solid var(--border-faint);
+      border-radius: 99px; font-size: 0.76rem; color: var(--text);
+    }
+    .member-pill.is-me { border-color: var(--accent); background: rgba(92,107,58,0.07); }
+    .pill-avatar { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+    .pill-initials { width: 20px; height: 20px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.58rem; font-weight: 700; color: var(--muted); flex-shrink: 0; }
+
+    .room-footer { display: flex; justify-content: flex-end; }
+    .btn-leave { background: none; border: none; border-bottom: 1px solid transparent; color: var(--muted); font-size: 0.71rem; cursor: pointer; font-family: inherit; padding: 2px 0; transition: color 0.15s, border-color 0.15s; }
+    .btn-leave:hover { color: var(--danger); border-bottom-color: var(--danger); }
+
+    /* ── Friend cards ────────────────────────── */
+    .friend-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+    .friend-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 14px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-faint);
+    }
+    .friend-avatar { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); object-fit: cover; flex-shrink: 0; }
+    .friend-initials { width: 32px; height: 32px; border-radius: 50%; background: var(--surface-in); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: var(--muted); flex-shrink: 0; }
+    .friend-name { font-size: 0.88rem; font-weight: 500; color: var(--text); }
+    .friend-email { font-size: 0.7rem; color: var(--muted); margin-top: 1px; }
+    .friend-empty { font-size: 0.82rem; color: var(--muted); font-style: italic; padding: 8px 0 4px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Weekly Planner</h1>
-    <div class="week-label" id="weekLabel"></div>
 
-    <!-- Targets -->
+    <!-- ── Header ── -->
+    <div class="page-header">
+      <div>
+        <h1>Weekly Planner</h1>
+        <div class="week-label" id="weekLabel"></div>
+      </div>
+      <div class="auth-controls" id="authControls">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- ── Own Data ── -->
     <div class="card">
       <div class="card-title">Weekly Targets (hours)</div>
       <div id="targetsList"></div>
@@ -396,13 +336,11 @@
       </div>
     </div>
 
-    <!-- Stats -->
     <div class="card">
       <div class="card-title">This Week</div>
       <div class="stats-grid" id="statsGrid"></div>
     </div>
 
-    <!-- Add Session -->
     <div class="card">
       <div class="card-title">Add Session</div>
       <div class="session-form">
@@ -422,7 +360,6 @@
       </div>
     </div>
 
-    <!-- Session Log -->
     <div class="card">
       <div class="card-title">Session Log</div>
       <div class="session-list" id="sessionList"></div>
@@ -430,10 +367,27 @@
         <button class="btn-reset" onclick="confirmReset()">Reset week</button>
       </div>
     </div>
-  </div>
+
+    <!-- ── Room / Sharing (shown only when logged in) ── -->
+    <div id="roomSection" style="display:none">
+      <div class="section-divider"><span>Shared Room</span></div>
+      <div class="card">
+        <div class="card-title">Room</div>
+        <div id="roomContent"></div>
+      </div>
+      <div id="friendCards"></div>
+    </div>
+
+  </div><!-- /container -->
 
   <script>
-    const STORAGE_KEY = 'weekly-planner-v2';
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Constants
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const SUPABASE_URL     = 'https://cjecruypduvznnzsteaf.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_04LLiclqFp39yBDCMX-aig_Wt0BQZHy';
+    const STORAGE_KEY      = 'weekly-planner-v2';
 
     const COLOR_PALETTE = [
       '#5C6B3A', // olive green
@@ -446,32 +400,17 @@
       '#6B5C3A', // warm umber
     ];
 
-    function genId() {
-      return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    }
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Supabase client
+    // ═══════════════════════════════════════════════════════════════════════════
 
-    function todayStr() {
-      const d = new Date();
-      return [
-        d.getFullYear(),
-        String(d.getMonth() + 1).padStart(2, '0'),
-        String(d.getDate()).padStart(2, '0'),
-      ].join('-');
-    }
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    function getWeekStart() {
-      const now = new Date();
-      const day = now.getDay();
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - day + (day === 0 ? -6 : 1));
-      monday.setHours(0, 0, 0, 0);
-      return [
-        monday.getFullYear(),
-        String(monday.getMonth() + 1).padStart(2, '0'),
-        String(monday.getDate()).padStart(2, '0'),
-      ].join('-');
-    }
+    // ═══════════════════════════════════════════════════════════════════════════
+    // State
+    // ═══════════════════════════════════════════════════════════════════════════
 
+    // Planner data (owned by current user)
     let state = {
       activities: [
         { id: 'work',  name: 'Work',  target: '', color: COLOR_PALETTE[0] },
@@ -481,60 +420,34 @@
       weekStart: getWeekStart(),
     };
 
-    // ── Persistence ──────────────────────────────────────────────────────────
+    // Auth + room state
+    let auth = {
+      user:    null,   // Supabase user object
+      room:    null,   // { id, code, created_by }
+      members: [],     // [{ userId, isMe, profile, plannerData }]
+      channel: null,   // Realtime channel
+    };
 
-    function load() {
-      // Try v2 format
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        try {
-          const saved = JSON.parse(raw);
-          const currentWeek = getWeekStart();
-          if (saved.weekStart !== currentWeek) {
-            // New week: carry activities+targets, clear sessions
-            state.activities = saved.activities || state.activities;
-            state.weekStart = currentWeek;
-          } else {
-            state = Object.assign({}, state, saved);
-          }
-          return;
-        } catch (_) {}
-      }
+    let _dbSaveTimer = null;
 
-      // Migrate from v1 (workTarget / studyTarget flat fields)
-      const rawV1 = localStorage.getItem('weekly-planner-v1');
-      if (rawV1) {
-        try {
-          const saved = JSON.parse(rawV1);
-          const currentWeek = getWeekStart();
-          state.activities[0].target = saved.workTarget || '';
-          state.activities[1].target = saved.studyTarget || '';
-          // v1 stored weekStart as ISO string, compare date portion
-          const v1Week = saved.weekStart ? saved.weekStart.slice(0, 10) : null;
-          if (v1Week === currentWeek) {
-            state.sessions = (saved.sessions || []).map(s => ({
-              id: genId(),
-              activityId: s.type,
-              hours: s.hours,
-              date: s.timestamp ? s.timestamp.slice(0, 10) : currentWeek,
-              addedAt: s.timestamp || new Date().toISOString(),
-            }));
-          }
-          state.weekStart = currentWeek;
-        } catch (_) {}
-      }
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Helpers
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+    function todayStr() {
+      const d = new Date();
+      return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
     }
 
-    function save() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
-
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
-    function nextColor() {
-      const used = new Set(state.activities.map(a => a.color));
-      return COLOR_PALETTE.find(c => !used.has(c))
-        || COLOR_PALETTE[state.activities.length % COLOR_PALETTE.length];
+    function getWeekStart() {
+      const now = new Date();
+      const monday = new Date(now);
+      const day = now.getDay();
+      monday.setDate(now.getDate() - day + (day === 0 ? -6 : 1));
+      monday.setHours(0,0,0,0);
+      return [monday.getFullYear(), String(monday.getMonth()+1).padStart(2,'0'), String(monday.getDate()).padStart(2,'0')].join('-');
     }
 
     function fmtHours(h) {
@@ -543,19 +456,273 @@
     }
 
     function fmtDate(dateStr) {
-      const [y, m, d] = dateStr.split('-').map(Number);
-      return new Date(y, m - 1, d).toLocaleDateString('en-US', {
-        weekday: 'short', month: 'short', day: 'numeric',
-      });
+      const [y,m,d] = dateStr.split('-').map(Number);
+      return new Date(y,m-1,d).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
     }
 
     function esc(str) {
-      return String(str)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // ── Render ───────────────────────────────────────────────────────────────
+    function flash(el) {
+      el.style.borderColor = 'var(--danger)';
+      el.focus();
+      setTimeout(() => { el.style.borderColor = ''; }, 1200);
+    }
+
+    function nextColor() {
+      const used = new Set(state.activities.map(a => a.color));
+      return COLOR_PALETTE.find(c => !used.has(c)) || COLOR_PALETTE[state.activities.length % COLOR_PALETTE.length];
+    }
+
+    function generateCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Local storage
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function loadLocal() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      try {
+        const saved = JSON.parse(raw);
+        const currentWeek = getWeekStart();
+        if (saved.weekStart !== currentWeek) {
+          state.activities = saved.activities || state.activities;
+          state.weekStart   = currentWeek;
+        } else {
+          state = Object.assign({}, state, saved);
+        }
+      } catch (_) {}
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Save — local is synchronous; Supabase is debounced
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (auth.user) {
+        clearTimeout(_dbSaveTimer);
+        _dbSaveTimer = setTimeout(saveToDb, 800);
+      }
+    }
+
+    async function saveToDb() {
+      if (!auth.user) return;
+      await sb.from('planner_data').upsert(
+        {
+          user_id:    auth.user.id,
+          week_start: state.weekStart,
+          activities: state.activities,
+          sessions:   state.sessions,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,week_start' }
+      );
+    }
+
+    async function loadFromDb() {
+      if (!auth.user) return;
+      const { data } = await sb
+        .from('planner_data')
+        .select('activities, sessions')
+        .eq('user_id', auth.user.id)
+        .eq('week_start', state.weekStart)
+        .maybeSingle();
+
+      if (data) {
+        state.activities = data.activities ?? state.activities;
+        state.sessions   = data.sessions   ?? [];
+      } else {
+        // No cloud data yet — upload whatever is in localStorage
+        await saveToDb();
+      }
+      // Persist activities-only (targets) for new week migration
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Auth
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    async function initAuth() {
+      // Handle OAuth redirect
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) await onSignIn(session.user);
+      else renderAuthBar();
+
+      sb.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN'  && session) await onSignIn(session.user);
+        if (event === 'SIGNED_OUT')              onSignOut();
+      });
+    }
+
+    async function signIn() {
+      await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin + window.location.pathname },
+      });
+    }
+
+    async function signOut() {
+      unsubscribeRoom();
+      await sb.auth.signOut();
+    }
+
+    async function onSignIn(user) {
+      auth.user = user;
+      // Upsert profile (safety net alongside the DB trigger)
+      const meta = user.user_metadata || {};
+      await sb.from('profiles').upsert({
+        id:         user.id,
+        email:      user.email,
+        full_name:  meta.full_name  || null,
+        avatar_url: meta.avatar_url || null,
+      }, { onConflict: 'id' });
+
+      await loadFromDb();
+      await loadRoom();
+      renderAuthBar();
+      render();
+      renderRoomSection();
+    }
+
+    function onSignOut() {
+      auth.user    = null;
+      auth.room    = null;
+      auth.members = [];
+      auth.channel = null;
+      document.getElementById('roomSection').style.display = 'none';
+      renderAuthBar();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Room
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    async function loadRoom() {
+      const { data } = await sb
+        .from('room_members')
+        .select('room_id, rooms(id, code, created_by)')
+        .eq('user_id', auth.user.id)
+        .order('joined_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data?.rooms) {
+        auth.room = data.rooms;
+        await loadRoomMembers();
+        subscribeRoom();
+      }
+      renderRoomSection();
+    }
+
+    async function loadRoomMembers() {
+      if (!auth.room) return;
+
+      const { data: members } = await sb
+        .from('room_members')
+        .select('user_id, joined_at')
+        .eq('room_id', auth.room.id);
+
+      if (!members?.length) { auth.members = []; return; }
+
+      const userIds = members.map(m => m.user_id);
+
+      const [{ data: profiles }, { data: plannerRows }] = await Promise.all([
+        sb.from('profiles').select('id, full_name, email, avatar_url').in('id', userIds),
+        sb.from('planner_data').select('user_id, activities, sessions').in('user_id', userIds).eq('week_start', state.weekStart),
+      ]);
+
+      auth.members = members.map(m => ({
+        userId:      m.user_id,
+        isMe:        m.user_id === auth.user.id,
+        profile:     profiles?.find(p => p.id === m.user_id) ?? null,
+        plannerData: plannerRows?.find(r => r.user_id === m.user_id) ?? null,
+      }));
+    }
+
+    async function createRoom() {
+      const code = generateCode();
+      const { data: room, error } = await sb
+        .from('rooms')
+        .insert({ code, created_by: auth.user.id })
+        .select('id, code, created_by')
+        .single();
+
+      if (error) { console.error(error); return; }
+
+      await sb.from('room_members').insert({ room_id: room.id, user_id: auth.user.id });
+
+      auth.room = room;
+      await loadRoomMembers();
+      subscribeRoom();
+      renderRoomSection();
+    }
+
+    async function joinRoomFromInput() {
+      const input = document.getElementById('joinCodeInput');
+      const code  = (input?.value || '').trim();
+      if (!code) { if (input) flash(input); return; }
+
+      const { data, error } = await sb.rpc('join_room', { p_code: code });
+
+      if (error || data?.error) {
+        if (input) flash(input);
+        return;
+      }
+
+      auth.room = { id: data.room_id, code: data.code };
+      await loadRoomMembers();
+      subscribeRoom();
+      renderRoomSection();
+    }
+
+    async function leaveRoom() {
+      if (!auth.room || !confirm('Leave this room?')) return;
+      unsubscribeRoom();
+
+      await sb.from('room_members')
+        .delete()
+        .eq('room_id', auth.room.id)
+        .eq('user_id', auth.user.id);
+
+      auth.room    = null;
+      auth.members = [];
+      renderRoomSection();
+    }
+
+    function subscribeRoom() {
+      unsubscribeRoom();
+      if (!auth.room) return;
+
+      auth.channel = sb.channel('room-' + auth.room.id)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'planner_data' },
+          async () => { await loadRoomMembers(); renderRoomSection(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'room_members',
+          filter: `room_id=eq.${auth.room.id}` },
+          async () => { await loadRoomMembers(); renderRoomSection(); })
+        .subscribe();
+    }
+
+    function unsubscribeRoom() {
+      if (auth.channel) { auth.channel.unsubscribe(); auth.channel = null; }
+    }
+
+    async function copyCode() {
+      if (!auth.room) return;
+      await navigator.clipboard.writeText(auth.room.code);
+      const btn = document.querySelector('.btn-copy');
+      if (btn) { const orig = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = orig; }, 1500); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Render — own data
+    // ═══════════════════════════════════════════════════════════════════════════
 
     function render() {
       renderWeekLabel();
@@ -565,13 +732,31 @@
       renderSessions();
     }
 
+    function renderAuthBar() {
+      const el = document.getElementById('authControls');
+      if (!auth.user) {
+        el.innerHTML = `<button class="btn-google" onclick="signIn()">Sign in with Google</button>`;
+        return;
+      }
+      const meta      = auth.user.user_metadata || {};
+      const name      = meta.full_name || auth.user.email?.split('@')[0] || 'User';
+      const avatarUrl = meta.avatar_url;
+      const avatarEl  = avatarUrl
+        ? `<img class="auth-avatar" src="${esc(avatarUrl)}" alt="${esc(name)}" />`
+        : `<div class="auth-initials">${esc(name[0].toUpperCase())}</div>`;
+      el.innerHTML = `
+        <div class="auth-user-info">
+          ${avatarEl}
+          <span class="auth-name">${esc(name)}</span>
+          <button class="btn-signout" onclick="signOut()">Sign out</button>
+        </div>`;
+    }
+
     function renderWeekLabel() {
-      const [y, m, d] = state.weekStart.split('-').map(Number);
-      const start = new Date(y, m - 1, d);
-      const end   = new Date(y, m - 1, d + 6);
-      const fmt = dt => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      document.getElementById('weekLabel').textContent =
-        `Week of ${fmt(start)} – ${fmt(end)}`;
+      const [y,m,d] = state.weekStart.split('-').map(Number);
+      const start = new Date(y,m-1,d), end = new Date(y,m-1,d+6);
+      const fmt = dt => dt.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+      document.getElementById('weekLabel').textContent = `Week of ${fmt(start)} – ${fmt(end)}`;
     }
 
     function renderTargets() {
@@ -589,8 +774,7 @@
             oninput="updateTarget('${a.id}', this.value)" />
           <span class="activity-target-label">h</span>
           <button class="btn-icon" onclick="removeActivity('${a.id}')" title="Remove">✕</button>
-        </div>
-      `).join('');
+        </div>`).join('');
     }
 
     function renderStats() {
@@ -599,45 +783,40 @@
         grid.innerHTML = '<div class="empty">Add activities above to see stats</div>';
         return;
       }
-      grid.innerHTML = state.activities.map(a => {
-        const done   = state.sessions.filter(s => s.activityId === a.id).reduce((s, x) => s + x.hours, 0);
-        const target = a.target !== '' ? parseFloat(a.target) : null;
-        const valid  = target !== null && !isNaN(target) && target > 0;
-        const left   = valid ? Math.max(0, target - done) : null;
-        const pct    = valid ? Math.min(100, Math.round((done / target) * 100)) : 0;
-        return `
-          <div class="stat-block" style="border-left-color:${a.color}">
-            <div class="stat-type" style="color:${a.color}">${esc(a.name)}</div>
-            <div class="stat-row"><span>Completed</span><span>${fmtHours(done)}</span></div>
-            <div class="stat-row"><span>Remaining</span><span>${fmtHours(left)}</span></div>
-            <div class="stat-row"><span>Target</span><span>${valid ? fmtHours(target) : '—'}</span></div>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width:${pct}%;background:${a.color}"></div>
-            </div>
-            <div class="progress-pct">${valid ? pct + '%' : '—'}</div>
-          </div>`;
-      }).join('');
+      grid.innerHTML = state.activities.map(a => statBlockHtml(a, state.sessions)).join('');
+    }
+
+    function statBlockHtml(a, sessions) {
+      const done  = sessions.filter(s => s.activityId === a.id).reduce((s, x) => s + x.hours, 0);
+      const tgt   = a.target !== '' ? parseFloat(a.target) : null;
+      const valid = tgt !== null && !isNaN(tgt) && tgt > 0;
+      const left  = valid ? Math.max(0, tgt - done) : null;
+      const pct   = valid ? Math.min(100, Math.round((done / tgt) * 100)) : 0;
+      return `
+        <div class="stat-block" style="border-left-color:${a.color}">
+          <div class="stat-type" style="color:${a.color}">${esc(a.name)}</div>
+          <div class="stat-row"><span>Completed</span><span>${fmtHours(done)}</span></div>
+          <div class="stat-row"><span>Remaining</span><span>${fmtHours(left)}</span></div>
+          <div class="stat-row"><span>Target</span><span>${valid ? fmtHours(tgt) : '—'}</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${a.color}"></div></div>
+          <div class="progress-pct">${valid ? pct+'%' : '—'}</div>
+        </div>`;
     }
 
     function renderSessionTypeDropdown() {
       const sel = document.getElementById('sessionType');
       const cur = sel.value;
       sel.innerHTML = state.activities.map(a =>
-        `<option value="${a.id}"${a.id === cur ? ' selected' : ''}>${esc(a.name)}</option>`
-      ).join('');
+        `<option value="${a.id}"${a.id === cur ? ' selected' : ''}>${esc(a.name)}</option>`).join('');
     }
 
     function renderSessions() {
       const list = document.getElementById('sessionList');
-      if (!state.sessions.length) {
-        list.innerHTML = '<div class="empty">No sessions yet</div>';
-        return;
-      }
+      if (!state.sessions.length) { list.innerHTML = '<div class="empty">No sessions yet</div>'; return; }
+
       const sorted = [...state.sessions].sort((a, b) =>
-        b.date !== a.date
-          ? b.date.localeCompare(a.date)
-          : new Date(b.addedAt) - new Date(a.addedAt)
-      );
+        b.date !== a.date ? b.date.localeCompare(a.date) : new Date(b.addedAt) - new Date(a.addedAt));
+
       list.innerHTML = sorted.map(s => {
         const act   = state.activities.find(a => a.id === s.activityId);
         const name  = act ? act.name  : s.activityId;
@@ -659,16 +838,112 @@
       }).join('');
     }
 
-    // ── Actions ──────────────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Render — room + friend cards
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function renderRoomSection() {
+      const section = document.getElementById('roomSection');
+      if (!auth.user) { section.style.display = 'none'; return; }
+      section.style.display = '';
+
+      renderRoomCard();
+      renderFriendCards();
+    }
+
+    function renderRoomCard() {
+      const el = document.getElementById('roomContent');
+
+      if (!auth.room) {
+        el.innerHTML = `
+          <div class="room-no-room">
+            <button class="btn-room primary" onclick="createRoom()">Create a new room</button>
+            <div class="room-or">or</div>
+            <div class="room-join-row">
+              <input id="joinCodeInput" class="room-code-input" placeholder="Invite code" maxlength="6" />
+              <button class="btn-room secondary" onclick="joinRoomFromInput()">Join</button>
+            </div>
+          </div>`;
+
+        document.getElementById('joinCodeInput').addEventListener('keydown', e => {
+          if (e.key === 'Enter') joinRoomFromInput();
+        });
+        return;
+      }
+
+      const code    = auth.room.code;
+      const fmtCode = code.slice(0,3) + ' · ' + code.slice(3);
+
+      const membersHtml = auth.members.map(m => {
+        const profile = m.profile || {};
+        const name    = profile.full_name?.split(' ')[0] || profile.email?.split('@')[0] || '?';
+        const label   = m.isMe ? name + ' (you)' : name;
+        const avatar  = profile.avatar_url
+          ? `<img class="pill-avatar" src="${esc(profile.avatar_url)}" alt="${esc(name)}" />`
+          : `<div class="pill-initials">${esc(name[0]?.toUpperCase() || '?')}</div>`;
+        return `<div class="member-pill${m.isMe ? ' is-me' : ''}">${avatar}<span>${esc(label)}</span></div>`;
+      }).join('');
+
+      el.innerHTML = `
+        <div class="room-code-label">Invite code</div>
+        <div class="room-code-display">
+          <span class="room-code-value">${esc(fmtCode)}</span>
+          <button class="btn-copy" onclick="copyCode()">Copy</button>
+        </div>
+        <div class="room-members-label">Members (${auth.members.length})</div>
+        <div class="room-members-row">${membersHtml}</div>
+        <div class="room-footer">
+          <button class="btn-leave" onclick="leaveRoom()">Leave room</button>
+        </div>`;
+    }
+
+    function renderFriendCards() {
+      const container = document.getElementById('friendCards');
+      const friends   = auth.members.filter(m => !m.isMe);
+
+      if (!friends.length) { container.innerHTML = ''; return; }
+
+      container.innerHTML = friends.map(m => {
+        const profile = m.profile || {};
+        const name    = profile.full_name || profile.email?.split('@')[0] || 'Member';
+        const email   = profile.email || '';
+        const acts    = m.plannerData?.activities || [];
+        const sess    = m.plannerData?.sessions   || [];
+
+        const avatar = profile.avatar_url
+          ? `<img class="friend-avatar" src="${esc(profile.avatar_url)}" alt="${esc(name)}" />`
+          : `<div class="friend-initials">${esc(name[0]?.toUpperCase() || '?')}</div>`;
+
+        // Use the first activity color as the left-border accent for the friend card
+        const accentColor = acts[0]?.color || 'var(--border)';
+
+        const statsHtml = acts.length
+          ? acts.map(a => statBlockHtml(a, sess)).join('')
+          : '<div class="friend-empty">No activities logged yet</div>';
+
+        return `
+          <div class="friend-card" style="border-left-color:${accentColor}">
+            <div class="friend-header">
+              ${avatar}
+              <div>
+                <div class="friend-name">${esc(name)}</div>
+                <div class="friend-email">${esc(email)}</div>
+              </div>
+            </div>
+            <div class="stats-grid">${statsHtml}</div>
+          </div>`;
+      }).join('');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Actions
+    // ═══════════════════════════════════════════════════════════════════════════
 
     function addActivity() {
       const input = document.getElementById('newActivityName');
       const name  = input.value.trim();
       if (!name) { input.focus(); return; }
-      if (state.activities.find(a => a.name.toLowerCase() === name.toLowerCase())) {
-        flash(input);
-        return;
-      }
+      if (state.activities.find(a => a.name.toLowerCase() === name.toLowerCase())) { flash(input); return; }
       state.activities.push({ id: genId(), name, target: '', color: nextColor() });
       input.value = '';
       save();
@@ -676,9 +951,9 @@
     }
 
     function removeActivity(id) {
-      const act = state.activities.find(a => a.id === id);
+      const act         = state.activities.find(a => a.id === id);
       const hasSessions = state.sessions.some(s => s.activityId === id);
-      const msg = hasSessions
+      const msg         = hasSessions
         ? `Remove "${act?.name}"? Its logged sessions will also be deleted.`
         : `Remove "${act?.name}"?`;
       if (!confirm(msg)) return;
@@ -698,18 +973,11 @@
       const date       = document.getElementById('sessionDate').value;
       const hours      = parseFloat(document.getElementById('sessionHours').value);
       let ok = true;
-
-      if (!date) { flash(document.getElementById('sessionDate')); ok = false; }
+      if (!date)                       { flash(document.getElementById('sessionDate'));  ok = false; }
       if (!hours || hours <= 0 || hours > 24) { flash(document.getElementById('sessionHours')); ok = false; }
       if (!ok) return;
 
-      state.sessions.push({
-        id: genId(),
-        activityId,
-        hours: Math.round(hours * 2) / 2,
-        date,
-        addedAt: new Date().toISOString(),
-      });
+      state.sessions.push({ id: genId(), activityId, hours: Math.round(hours*2)/2, date, addedAt: new Date().toISOString() });
       document.getElementById('sessionHours').value = '';
       save();
       renderStats();
@@ -724,38 +992,34 @@
     }
 
     function confirmReset() {
-      if (confirm('Reset all sessions for this week? Activities and targets will be kept.')) {
-        state.sessions = [];
-        state.weekStart = getWeekStart();
-        save();
-        renderStats();
-        renderSessions();
-      }
+      if (!confirm('Reset all sessions for this week? Activities and targets will be kept.')) return;
+      state.sessions   = [];
+      state.weekStart  = getWeekStart();
+      save();
+      renderStats();
+      renderSessions();
     }
 
-    function flash(el) {
-      el.style.borderColor = 'var(--danger)';
-      el.focus();
-      setTimeout(() => (el.style.borderColor = ''), 1200);
-    }
-
-    // ── Event listeners ──────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Event listeners
+    // ═══════════════════════════════════════════════════════════════════════════
 
     document.getElementById('newActivityName').addEventListener('keydown', e => {
       if (e.key === 'Enter') addActivity();
     });
-
     document.getElementById('sessionHours').addEventListener('keydown', e => {
       if (e.key === 'Enter') addSession();
     });
 
-    // ── Init ─────────────────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Init
+    // ═══════════════════════════════════════════════════════════════════════════
 
     document.getElementById('sessionDate').value = todayStr();
-    load();
+    loadLocal();
     render();
+    initAuth(); // async — updates auth bar + loads cloud data after
 
-    // ── Service Worker ────────────────────────────────────────────────────────
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js').catch(() => {});
