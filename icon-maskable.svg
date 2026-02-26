@@ -1,0 +1,36 @@
+<!-- Maskable icon: full-bleed olive background, content within inner 80% safe zone -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full olive background (masking system clips to shape) -->
+  <rect width="512" height="512" fill="#5C6B3A"/>
+
+  <!-- All elements within the inner ~80% safe zone (approx. 102–410px) -->
+
+  <!-- Cream header accent -->
+  <rect x="108" y="112" width="296" height="44" rx="9" fill="#FAF7F2" opacity="0.90"/>
+
+  <!-- Progress rows — cream tracks, semi-cream fills -->
+  <!-- Row 1, ~65% -->
+  <rect x="108" y="172" width="296" height="24" rx="6" fill="#FAF7F2" opacity="0.22"/>
+  <rect x="108" y="172" width="192" height="24" rx="6" fill="#FAF7F2" opacity="0.88"/>
+
+  <!-- Row 2, ~42% -->
+  <rect x="108" y="204" width="296" height="24" rx="6" fill="#FAF7F2" opacity="0.22"/>
+  <rect x="108" y="204" width="124" height="24" rx="6" fill="#FAF7F2" opacity="0.64"/>
+
+  <!-- Row 3, ~75% -->
+  <rect x="108" y="236" width="296" height="24" rx="6" fill="#FAF7F2" opacity="0.22"/>
+  <rect x="108" y="236" width="222" height="24" rx="6" fill="#FAF7F2" opacity="0.44"/>
+
+  <!-- Divider -->
+  <rect x="108" y="282" width="296" height="1.5" fill="#FAF7F2" opacity="0.28"/>
+
+  <!-- Session entries -->
+  <circle cx="128" cy="310" r="11" fill="#FAF7F2" opacity="0.82"/>
+  <rect x="150" y="303" width="160" height="14" rx="4" fill="#FAF7F2" opacity="0.30"/>
+
+  <circle cx="128" cy="342" r="11" fill="#FAF7F2" opacity="0.62"/>
+  <rect x="150" y="335" width="120" height="14" rx="4" fill="#FAF7F2" opacity="0.30"/>
+
+  <circle cx="128" cy="374" r="11" fill="#FAF7F2" opacity="0.44"/>
+  <rect x="150" y="367" width="184" height="14" rx="4" fill="#FAF7F2" opacity="0.30"/>
+</svg>

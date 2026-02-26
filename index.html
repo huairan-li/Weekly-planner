@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weekly Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#FAF7F2" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Weekly Planner" />
+  <link rel="apple-touch-icon" href="icon-192.svg" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #FAF7F2;
+      --surface:      #FEFCF8;
+      --surface-in:   #F5F0E8;
+      --border:       #D4CFC8;
+      --border-faint: #E8E3DC;
+      --text:         #2C2416;
+      --muted:        #8C8070;
+      --accent:       #5C6B3A;
+      --accent-dark:  #49562E;
+      --danger:       #8B3A2A;
+      --radius:       7px;
+      --shadow:       0 1px 4px rgba(44, 36, 22, 0.07);
+    }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 28px 16px 48px;
+      line-height: 1.5;
+    }
+
+    .container { max-width: 480px; margin: 0 auto; }
+
+    /* ── Header ──────────────────────────────── */
+    h1 {
+      font-family: 'Lora', Georgia, "Palatino Linotype", serif;
+      font-size: 1.6rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    .week-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 26px;
+      letter-spacing: 0.01em;
+    }
+
+    /* ── Cards ───────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+
+    .card-title {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Targets ─────────────────────────────── */
+    .activity-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 9px;
+    }
+
+    .activity-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      opacity: 0.9;
+    }
+
+    .activity-name {
+      flex: 1;
+      font-size: 0.875rem;
+      font-weight: 400;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text);
+    }
+
+    .activity-target-input {
+      width: 56px;
+      padding: 5px 7px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      background: var(--surface-in);
+      color: var(--text);
+      outline: none;
+      text-align: right;
+      transition: border-color 0.15s;
+    }
+
+    .activity-target-input:focus { border-color: var(--accent); }
+
+    .activity-target-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .btn-icon {
+      background: none;
+      border: none;
+      color: var(--border);
+      cursor: pointer;
+      font-size: 0.68rem;
+      padding: 3px 5px;
+      border-radius: 4px;
+      line-height: 1;
+      transition: color 0.15s;
+      flex-shrink: 0;
+    }
+
+    .btn-icon:hover { color: var(--danger); }
+
+    .add-activity-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-faint);
+    }
+
+    .add-activity-row input {
+      flex: 1;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.84rem;
+      font-family: inherit;
+      background: var(--surface-in);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .add-activity-row input::placeholder { color: var(--muted); opacity: 0.65; }
+    .add-activity-row input:focus { border-color: var(--accent); }
+
+    .btn-add {
+      padding: 7px 13px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.79rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .btn-add:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Stats ───────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .stat-block {
+      background: var(--surface-in);
+      border-radius: 5px;
+      padding: 13px 12px;
+      border-left: 2px solid #ccc;
+    }
+
+    .stat-type {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-bottom: 9px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      margin-bottom: 4px;
+      color: var(--muted);
+    }
+
+    .stat-row span:last-child { font-weight: 500; color: var(--text); }
+
+    .progress-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 99px;
+      margin-top: 11px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.5s ease;
+      opacity: 0.85;
+    }
+
+    .progress-pct {
+      font-size: 0.67rem;
+      color: var(--muted);
+      margin-top: 5px;
+      text-align: right;
+      letter-spacing: 0.03em;
+    }
+
+    /* ── Add Session ─────────────────────────── */
+    .session-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .form-field label {
+      display: block;
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+
+    .form-field select,
+    .form-field input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      background: var(--surface-in);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .form-field select { appearance: none; -webkit-appearance: none; }
+
+    .form-field select:focus,
+    .form-field input:focus { border-color: var(--accent); }
+
+    .session-form .btn-primary {
+      grid-column: 1 / -1;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      font-size: 0.84rem;
+      font-weight: 500;
+      letter-spacing: 0.025em;
+      cursor: pointer;
+      background: var(--accent);
+      color: #F5F0E8;
+      font-family: inherit;
+      transition: background 0.15s, transform 0.1s;
+      margin-top: 2px;
+    }
+
+    .session-form .btn-primary:hover { background: var(--accent-dark); }
+    .session-form .btn-primary:active { transform: scale(0.99); }
+
+    /* ── Session Log ─────────────────────────── */
+    .session-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .session-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 11px;
+      background: var(--surface-in);
+      border-radius: 5px;
+      border: 1px solid var(--border-faint);
+      font-size: 0.84rem;
+    }
+
+    .session-left {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .session-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      opacity: 0.85;
+    }
+
+    .session-info { font-weight: 500; color: var(--text); }
+    .session-time { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+
+    .session-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .session-hours { font-weight: 600; font-size: 0.88rem; }
+
+    .btn-danger {
+      background: none;
+      border: none;
+      color: var(--border);
+      padding: 3px 6px;
+      font-size: 0.7rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    .btn-danger:hover { color: var(--danger); }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.82rem;
+      padding: 12px 0 4px;
+      font-style: italic;
+    }
+
+    .reset-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
+
+    .btn-reset {
+      background: none;
+      border: none;
+      color: var(--muted);
+      padding: 4px 0;
+      font-size: 0.71rem;
+      cursor: pointer;
+      font-family: inherit;
+      border-bottom: 1px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .btn-reset:hover { color: var(--danger); border-bottom-color: var(--danger); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Weekly Planner</h1>
+    <div class="week-label" id="weekLabel"></div>
+
+    <!-- Targets -->
+    <div class="card">
+      <div class="card-title">Weekly Targets (hours)</div>
+      <div id="targetsList"></div>
+      <div class="add-activity-row">
+        <input type="text" id="newActivityName" placeholder="New activity…" maxlength="24" />
+        <button class="btn-add" onclick="addActivity()">+ Add</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card">
+      <div class="card-title">This Week</div>
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
+
+    <!-- Add Session -->
+    <div class="card">
+      <div class="card-title">Add Session</div>
+      <div class="session-form">
+        <div class="form-field">
+          <label for="sessionType">Activity</label>
+          <select id="sessionType"></select>
+        </div>
+        <div class="form-field">
+          <label for="sessionDate">Date</label>
+          <input type="date" id="sessionDate" />
+        </div>
+        <div class="form-field">
+          <label for="sessionHours">Hours</label>
+          <input type="number" id="sessionHours" min="0.5" max="24" step="0.5" placeholder="0.5" />
+        </div>
+        <button class="btn-primary" onclick="addSession()">Add Session</button>
+      </div>
+    </div>
+
+    <!-- Session Log -->
+    <div class="card">
+      <div class="card-title">Session Log</div>
+      <div class="session-list" id="sessionList"></div>
+      <div class="reset-row">
+        <button class="btn-reset" onclick="confirmReset()">Reset week</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'weekly-planner-v2';
+
+    const COLOR_PALETTE = [
+      '#5C6B3A', // olive green
+      '#A0522D', // terracotta
+      '#4A5D7A', // slate blue
+      '#8B6B2A', // ochre
+      '#7A4A62', // dusty plum
+      '#3A6B62', // sage teal
+      '#6B3A3A', // dusty rose
+      '#6B5C3A', // warm umber
+    ];
+
+    function genId() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    }
+
+    function todayStr() {
+      const d = new Date();
+      return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0'),
+      ].join('-');
+    }
+
+    function getWeekStart() {
+      const now = new Date();
+      const day = now.getDay();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - day + (day === 0 ? -6 : 1));
+      monday.setHours(0, 0, 0, 0);
+      return [
+        monday.getFullYear(),
+        String(monday.getMonth() + 1).padStart(2, '0'),
+        String(monday.getDate()).padStart(2, '0'),
+      ].join('-');
+    }
+
+    let state = {
+      activities: [
+        { id: 'work',  name: 'Work',  target: '', color: COLOR_PALETTE[0] },
+        { id: 'study', name: 'Study', target: '', color: COLOR_PALETTE[1] },
+      ],
+      sessions: [],
+      weekStart: getWeekStart(),
+    };
+
+    // ── Persistence ──────────────────────────────────────────────────────────
+
+    function load() {
+      // Try v2 format
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          const saved = JSON.parse(raw);
+          const currentWeek = getWeekStart();
+          if (saved.weekStart !== currentWeek) {
+            // New week: carry activities+targets, clear sessions
+            state.activities = saved.activities || state.activities;
+            state.weekStart = currentWeek;
+          } else {
+            state = Object.assign({}, state, saved);
+          }
+          return;
+        } catch (_) {}
+      }
+
+      // Migrate from v1 (workTarget / studyTarget flat fields)
+      const rawV1 = localStorage.getItem('weekly-planner-v1');
+      if (rawV1) {
+        try {
+          const saved = JSON.parse(rawV1);
+          const currentWeek = getWeekStart();
+          state.activities[0].target = saved.workTarget || '';
+          state.activities[1].target = saved.studyTarget || '';
+          // v1 stored weekStart as ISO string, compare date portion
+          const v1Week = saved.weekStart ? saved.weekStart.slice(0, 10) : null;
+          if (v1Week === currentWeek) {
+            state.sessions = (saved.sessions || []).map(s => ({
+              id: genId(),
+              activityId: s.type,
+              hours: s.hours,
+              date: s.timestamp ? s.timestamp.slice(0, 10) : currentWeek,
+              addedAt: s.timestamp || new Date().toISOString(),
+            }));
+          }
+          state.weekStart = currentWeek;
+        } catch (_) {}
+      }
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function nextColor() {
+      const used = new Set(state.activities.map(a => a.color));
+      return COLOR_PALETTE.find(c => !used.has(c))
+        || COLOR_PALETTE[state.activities.length % COLOR_PALETTE.length];
+    }
+
+    function fmtHours(h) {
+      if (h === null || h === undefined || h === '' || isNaN(h)) return '—';
+      return h % 1 === 0 ? h + 'h' : h.toFixed(1) + 'h';
+    }
+
+    function fmtDate(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric',
+      });
+    }
+
+    function esc(str) {
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ── Render ───────────────────────────────────────────────────────────────
+
+    function render() {
+      renderWeekLabel();
+      renderTargets();
+      renderStats();
+      renderSessionTypeDropdown();
+      renderSessions();
+    }
+
+    function renderWeekLabel() {
+      const [y, m, d] = state.weekStart.split('-').map(Number);
+      const start = new Date(y, m - 1, d);
+      const end   = new Date(y, m - 1, d + 6);
+      const fmt = dt => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      document.getElementById('weekLabel').textContent =
+        `Week of ${fmt(start)} – ${fmt(end)}`;
+    }
+
+    function renderTargets() {
+      const el = document.getElementById('targetsList');
+      if (!state.activities.length) {
+        el.innerHTML = '<div class="empty" style="padding:4px 0 8px">No activities yet</div>';
+        return;
+      }
+      el.innerHTML = state.activities.map(a => `
+        <div class="activity-row">
+          <div class="activity-dot" style="background:${a.color}"></div>
+          <span class="activity-name" title="${esc(a.name)}">${esc(a.name)}</span>
+          <input class="activity-target-input" type="number" min="0" max="168" step="0.5"
+            value="${esc(a.target)}" placeholder="—"
+            oninput="updateTarget('${a.id}', this.value)" />
+          <span class="activity-target-label">h</span>
+          <button class="btn-icon" onclick="removeActivity('${a.id}')" title="Remove">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function renderStats() {
+      const grid = document.getElementById('statsGrid');
+      if (!state.activities.length) {
+        grid.innerHTML = '<div class="empty">Add activities above to see stats</div>';
+        return;
+      }
+      grid.innerHTML = state.activities.map(a => {
+        const done   = state.sessions.filter(s => s.activityId === a.id).reduce((s, x) => s + x.hours, 0);
+        const target = a.target !== '' ? parseFloat(a.target) : null;
+        const valid  = target !== null && !isNaN(target) && target > 0;
+        const left   = valid ? Math.max(0, target - done) : null;
+        const pct    = valid ? Math.min(100, Math.round((done / target) * 100)) : 0;
+        return `
+          <div class="stat-block" style="border-left-color:${a.color}">
+            <div class="stat-type" style="color:${a.color}">${esc(a.name)}</div>
+            <div class="stat-row"><span>Completed</span><span>${fmtHours(done)}</span></div>
+            <div class="stat-row"><span>Remaining</span><span>${fmtHours(left)}</span></div>
+            <div class="stat-row"><span>Target</span><span>${valid ? fmtHours(target) : '—'}</span></div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${pct}%;background:${a.color}"></div>
+            </div>
+            <div class="progress-pct">${valid ? pct + '%' : '—'}</div>
+          </div>`;
+      }).join('');
+    }
+
+    function renderSessionTypeDropdown() {
+      const sel = document.getElementById('sessionType');
+      const cur = sel.value;
+      sel.innerHTML = state.activities.map(a =>
+        `<option value="${a.id}"${a.id === cur ? ' selected' : ''}>${esc(a.name)}</option>`
+      ).join('');
+    }
+
+    function renderSessions() {
+      const list = document.getElementById('sessionList');
+      if (!state.sessions.length) {
+        list.innerHTML = '<div class="empty">No sessions yet</div>';
+        return;
+      }
+      const sorted = [...state.sessions].sort((a, b) =>
+        b.date !== a.date
+          ? b.date.localeCompare(a.date)
+          : new Date(b.addedAt) - new Date(a.addedAt)
+      );
+      list.innerHTML = sorted.map(s => {
+        const act   = state.activities.find(a => a.id === s.activityId);
+        const name  = act ? act.name  : s.activityId;
+        const color = act ? act.color : '#aaa';
+        return `
+          <div class="session-item">
+            <div class="session-left">
+              <div class="session-dot" style="background:${color}"></div>
+              <div>
+                <div class="session-info">${esc(name)}</div>
+                <div class="session-time">${fmtDate(s.date)}</div>
+              </div>
+            </div>
+            <div class="session-right">
+              <span class="session-hours" style="color:${color}">${fmtHours(s.hours)}</span>
+              <button class="btn-danger" onclick="removeSession('${s.id}')" title="Remove">✕</button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    // ── Actions ──────────────────────────────────────────────────────────────
+
+    function addActivity() {
+      const input = document.getElementById('newActivityName');
+      const name  = input.value.trim();
+      if (!name) { input.focus(); return; }
+      if (state.activities.find(a => a.name.toLowerCase() === name.toLowerCase())) {
+        flash(input);
+        return;
+      }
+      state.activities.push({ id: genId(), name, target: '', color: nextColor() });
+      input.value = '';
+      save();
+      render();
+    }
+
+    function removeActivity(id) {
+      const act = state.activities.find(a => a.id === id);
+      const hasSessions = state.sessions.some(s => s.activityId === id);
+      const msg = hasSessions
+        ? `Remove "${act?.name}"? Its logged sessions will also be deleted.`
+        : `Remove "${act?.name}"?`;
+      if (!confirm(msg)) return;
+      state.activities = state.activities.filter(a => a.id !== id);
+      if (hasSessions) state.sessions = state.sessions.filter(s => s.activityId !== id);
+      save();
+      render();
+    }
+
+    function updateTarget(id, value) {
+      const a = state.activities.find(a => a.id === id);
+      if (a) { a.target = value; save(); renderStats(); }
+    }
+
+    function addSession() {
+      const activityId = document.getElementById('sessionType').value;
+      const date       = document.getElementById('sessionDate').value;
+      const hours      = parseFloat(document.getElementById('sessionHours').value);
+      let ok = true;
+
+      if (!date) { flash(document.getElementById('sessionDate')); ok = false; }
+      if (!hours || hours <= 0 || hours > 24) { flash(document.getElementById('sessionHours')); ok = false; }
+      if (!ok) return;
+
+      state.sessions.push({
+        id: genId(),
+        activityId,
+        hours: Math.round(hours * 2) / 2,
+        date,
+        addedAt: new Date().toISOString(),
+      });
+      document.getElementById('sessionHours').value = '';
+      save();
+      renderStats();
+      renderSessions();
+    }
+
+    function removeSession(id) {
+      state.sessions = state.sessions.filter(s => s.id !== id);
+      save();
+      renderStats();
+      renderSessions();
+    }
+
+    function confirmReset() {
+      if (confirm('Reset all sessions for this week? Activities and targets will be kept.')) {
+        state.sessions = [];
+        state.weekStart = getWeekStart();
+        save();
+        renderStats();
+        renderSessions();
+      }
+    }
+
+    function flash(el) {
+      el.style.borderColor = 'var(--danger)';
+      el.focus();
+      setTimeout(() => (el.style.borderColor = ''), 1200);
+    }
+
+    // ── Event listeners ──────────────────────────────────────────────────────
+
+    document.getElementById('newActivityName').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addActivity();
+    });
+
+    document.getElementById('sessionHours').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addSession();
+    });
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+
+    document.getElementById('sessionDate').value = todayStr();
+    load();
+    render();
+
+    // ── Service Worker ────────────────────────────────────────────────────────
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

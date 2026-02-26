@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Parchment background -->
+  <rect width="512" height="512" rx="112" fill="#FAF7F2"/>
+
+  <!-- Header bar (olive) -->
+  <rect x="76" y="84" width="360" height="52" rx="10" fill="#5C6B3A"/>
+
+  <!-- Activity progress tracks + fills -->
+  <!-- Row 1: olive, ~65% -->
+  <rect x="76" y="160" width="360" height="28" rx="7" fill="#E8E3DC"/>
+  <rect x="76" y="160" width="234" height="28" rx="7" fill="#5C6B3A" opacity="0.82"/>
+
+  <!-- Row 2: terracotta, ~42% -->
+  <rect x="76" y="200" width="360" height="28" rx="7" fill="#E8E3DC"/>
+  <rect x="76" y="200" width="151" height="28" rx="7" fill="#A0522D" opacity="0.82"/>
+
+  <!-- Row 3: olive faint, ~75% -->
+  <rect x="76" y="240" width="360" height="28" rx="7" fill="#E8E3DC"/>
+  <rect x="76" y="240" width="270" height="28" rx="7" fill="#5C6B3A" opacity="0.40"/>
+
+  <!-- Divider -->
+  <rect x="76" y="298" width="360" height="1.5" fill="#D4CFC8"/>
+
+  <!-- Session log entries -->
+  <circle cx="100" cy="326" r="13" fill="#5C6B3A" opacity="0.78"/>
+  <rect x="124" y="318" width="192" height="16" rx="5" fill="#D4CFC8"/>
+
+  <circle cx="100" cy="362" r="13" fill="#A0522D" opacity="0.78"/>
+  <rect x="124" y="354" width="144" height="16" rx="5" fill="#D4CFC8"/>
+
+  <circle cx="100" cy="398" r="13" fill="#5C6B3A" opacity="0.44"/>
+  <rect x="124" y="390" width="224" height="16" rx="5" fill="#D4CFC8"/>
+</svg>
