@@ -310,6 +310,43 @@
     .friend-name { font-size: 0.88rem; font-weight: 500; color: var(--text); }
     .friend-email { font-size: 0.7rem; color: var(--muted); margin-top: 1px; }
     .friend-empty { font-size: 0.82rem; color: var(--muted); font-style: italic; padding: 8px 0 4px; }
+
+    /* ── Week navigation ─────────────────────── */
+    .week-nav { display: flex; align-items: center; gap: 5px; }
+    .week-nav-btn {
+      background: none; border: none;
+      color: var(--muted); font-size: 1rem; line-height: 1;
+      padding: 1px 5px; border-radius: 4px; cursor: pointer;
+      font-family: inherit; transition: color 0.15s, background 0.15s;
+    }
+    .week-nav-btn:hover:not(:disabled) { color: var(--text); background: var(--surface-in); }
+    .week-nav-btn:disabled { opacity: 0.2; cursor: default; }
+
+    /* ── History / read-only mode ────────────── */
+    .history-banner {
+      display: none; align-items: center; gap: 8px;
+      background: var(--surface-in); border: 1px solid var(--border-faint);
+      border-radius: var(--radius); padding: 9px 14px;
+      margin-bottom: 14px; font-size: 0.79rem; color: var(--muted);
+    }
+    .btn-go-current {
+      margin-left: auto; background: none; border: 1px solid var(--border);
+      border-radius: 4px; font-size: 0.75rem; font-family: inherit;
+      color: var(--muted); padding: 3px 9px; cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .btn-go-current:hover { color: var(--accent); border-color: var(--accent); }
+
+    .is-history .history-banner   { display: flex; }
+    .is-history .add-activity-row { display: none; }
+    .is-history .add-session-card { display: none; }
+    .is-history .btn-icon         { display: none; }
+    .is-history .btn-danger       { display: none; }
+    .is-history .reset-row        { display: none; }
+    .is-history .activity-target-input {
+      pointer-events: none; border-color: transparent;
+      background: transparent; opacity: 0.6;
+    }
   </style>
 </head>
 <body>
@@ -324,6 +361,12 @@
       <div class="auth-controls" id="authControls">
         <!-- Rendered by JS -->
       </div>
+    </div>
+
+    <!-- ── History banner (visible only in read-only mode) ── -->
+    <div class="history-banner">
+      Past week &mdash; read only
+      <button class="btn-go-current" onclick="goToCurrentWeek()">&#8592; This week</button>
     </div>
 
     <!-- ── Own Data ── -->
@@ -341,7 +384,7 @@
       <div class="stats-grid" id="statsGrid"></div>
     </div>
 
-    <div class="card">
+    <div class="card add-session-card">
       <div class="card-title">Add Session</div>
       <div class="session-form">
         <div class="form-field">
@@ -482,6 +525,18 @@
       return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
     }
 
+    // Returns the week_start string n weeks from the given week_start string
+    function weekOffset(startStr, n) {
+      const [y,m,d] = startStr.split('-').map(Number);
+      const date = new Date(y, m-1, d);
+      date.setDate(date.getDate() + n * 7);
+      return [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-');
+    }
+
+    function isCurrentWeek() {
+      return state.weekStart === getWeekStart();
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // Local storage
     // ═══════════════════════════════════════════════════════════════════════════
@@ -506,6 +561,7 @@
     // ═══════════════════════════════════════════════════════════════════════════
 
     function save() {
+      if (!isCurrentWeek()) return; // never write to history
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       if (auth.user) {
         clearTimeout(_dbSaveTimer);
@@ -541,12 +597,14 @@
       if (data) {
         state.activities = data.activities ?? state.activities;
         state.sessions   = data.sessions   ?? [];
-      } else {
-        // No cloud data yet — upload whatever is in localStorage
+      } else if (isCurrentWeek()) {
+        // No cloud data yet for current week — upload localStorage state
         await saveToDb();
       }
-      // Persist activities-only (targets) for new week migration
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      // else: past week with no record — leave state as-is (empty sessions)
+      if (isCurrentWeek()) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -793,7 +851,16 @@
       const [y,m,d] = state.weekStart.split('-').map(Number);
       const start = new Date(y,m-1,d), end = new Date(y,m-1,d+6);
       const fmt = dt => dt.toLocaleDateString('en-US', { month:'short', day:'numeric' });
-      document.getElementById('weekLabel').textContent = `Week of ${fmt(start)} – ${fmt(end)}`;
+      const isCurrent = isCurrentWeek();
+
+      document.getElementById('weekLabel').innerHTML = `
+        <div class="week-nav">
+          <button class="week-nav-btn" onclick="navigateWeek(-1)" title="Previous week">&#8249;</button>
+          <span>${fmt(start)} &ndash; ${fmt(end)}</span>
+          <button class="week-nav-btn" onclick="navigateWeek(1)" title="Next week"${isCurrent ? ' disabled' : ''}>&#8250;</button>
+        </div>`;
+
+      document.querySelector('.container').classList.toggle('is-history', !isCurrent);
     }
 
     function renderTargets() {
@@ -970,6 +1037,44 @@
             <div class="stats-grid">${statsHtml}</div>
           </div>`;
       }).join('');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Week navigation
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    async function navigateWeek(delta) {
+      const newWeek = weekOffset(state.weekStart, delta);
+      if (newWeek > getWeekStart()) return; // block future weeks
+
+      state.weekStart = newWeek;
+      state.sessions  = [];
+      render(); // immediate render with cleared sessions (shows loading state)
+
+      if (auth.user) {
+        await loadFromDb();
+        if (auth.room) {
+          await loadRoomMembers();
+          renderRoomSection();
+        }
+      }
+      render(); // re-render with loaded data
+    }
+
+    async function goToCurrentWeek() {
+      if (isCurrentWeek()) return;
+      state.weekStart = getWeekStart();
+      state.sessions  = [];
+      render();
+
+      if (auth.user) {
+        await loadFromDb();
+        if (auth.room) {
+          await loadRoomMembers();
+          renderRoomSection();
+        }
+      }
+      render();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
