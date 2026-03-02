@@ -1,4 +1,5 @@
-const CACHE = 'weekly-planner-v1';
+const CACHE_VERSION = 'v2';
+const CACHE_NAME    = `weekly-planner-${CACHE_VERSION}`;
 
 const LOCAL_ASSETS = [
   './',
@@ -12,7 +13,7 @@ const LOCAL_ASSETS = [
 // ── Install: pre-cache all local assets ──────────────────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(LOCAL_ASSETS))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(LOCAL_ASSETS))
   );
   self.skipWaiting();
 });
@@ -22,7 +23,7 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
-        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
       )
     )
   );
@@ -39,7 +40,7 @@ self.addEventListener('fetch', event => {
     url.hostname === 'fonts.gstatic.com'
   ) {
     event.respondWith(
-      caches.open(CACHE).then(cache =>
+      caches.open(CACHE_NAME).then(cache =>
         cache.match(event.request).then(cached => {
           const network = fetch(event.request).then(response => {
             cache.put(event.request, response.clone());
@@ -62,7 +63,7 @@ self.addEventListener('fetch', event => {
           response.ok &&
           url.origin === self.location.origin
         ) {
-          caches.open(CACHE).then(cache =>
+          caches.open(CACHE_NAME).then(cache =>
             cache.put(event.request, response.clone())
           );
         }
