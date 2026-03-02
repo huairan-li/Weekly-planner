@@ -422,13 +422,15 @@
 
     // Auth + room state
     let auth = {
-      user:    null,   // Supabase user object
-      room:    null,   // { id, code, created_by }
-      members: [],     // [{ userId, isMe, profile, plannerData }]
-      channel: null,   // Realtime channel
+      user:        null,   // Supabase user object
+      room:        null,   // { id, code, created_by }
+      members:     [],     // [{ userId, isMe, profile, plannerData }]
+      channel:     null,   // Realtime channel (room)
+      selfChannel: null,   // Realtime channel (own planner_data)
     };
 
-    let _dbSaveTimer = null;
+    let _dbSaveTimer  = null;
+    let _lastSavedAt  = null;  // ISO timestamp of our last saveToDb write
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Helpers
@@ -513,13 +515,15 @@
 
     async function saveToDb() {
       if (!auth.user) return;
+      const ts = new Date().toISOString();
+      _lastSavedAt = ts;
       await sb.from('planner_data').upsert(
         {
           user_id:    auth.user.id,
           week_start: state.weekStart,
           activities: state.activities,
           sessions:   state.sessions,
-          updated_at: new Date().toISOString(),
+          updated_at: ts,
         },
         { onConflict: 'user_id,week_start' }
       );
@@ -569,6 +573,7 @@
     }
 
     async function signOut() {
+      unsubscribeSelf();
       unsubscribeRoom();
       await sb.auth.signOut();
     }
@@ -585,6 +590,7 @@
       }, { onConflict: 'id' });
 
       await loadFromDb();
+      subscribeSelf();
       await loadRoom();
       renderAuthBar();
       render();
@@ -592,10 +598,12 @@
     }
 
     function onSignOut() {
-      auth.user    = null;
-      auth.room    = null;
-      auth.members = [];
-      auth.channel = null;
+      unsubscribeSelf();
+      auth.user        = null;
+      auth.room        = null;
+      auth.members     = [];
+      auth.channel     = null;
+      auth.selfChannel = null;
       document.getElementById('roomSection').style.display = 'none';
       renderAuthBar();
     }
@@ -711,6 +719,35 @@
 
     function unsubscribeRoom() {
       if (auth.channel) { auth.channel.unsubscribe(); auth.channel = null; }
+    }
+
+    function subscribeSelf() {
+      unsubscribeSelf();
+      if (!auth.user) return;
+
+      auth.selfChannel = sb.channel('self-' + auth.user.id)
+        .on('postgres_changes', {
+          event:  'UPDATE',
+          schema: 'public',
+          table:  'planner_data',
+          filter: `user_id=eq.${auth.user.id}`,
+        }, (payload) => {
+          const row = payload.new;
+          // Ignore events we triggered ourselves
+          if (row?.updated_at === _lastSavedAt) return;
+          // Ignore if it's a different week than what we're viewing
+          if (row?.week_start !== state.weekStart) return;
+
+          state.activities = row.activities ?? state.activities;
+          state.sessions   = row.sessions   ?? [];
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          render();
+        })
+        .subscribe();
+    }
+
+    function unsubscribeSelf() {
+      if (auth.selfChannel) { auth.selfChannel.unsubscribe(); auth.selfChannel = null; }
     }
 
     async function copyCode() {
