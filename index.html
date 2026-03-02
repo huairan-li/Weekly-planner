@@ -15,6 +15,8 @@
   <link rel="apple-touch-icon" href="icon-192.svg" />
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -347,6 +349,31 @@
       pointer-events: none; border-color: transparent;
       background: transparent; opacity: 0.6;
     }
+
+    /* ── Charts section ──────────────────────── */
+    .charts-section {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 16px 48px;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    @media (min-width: 680px) {
+      .charts-grid { grid-template-columns: 1fr 1fr; }
+      .chart-card-trend { grid-column: 1 / -1; }
+    }
+
+    .chart-canvas-wrap { position: relative; }
+
+    .chart-empty {
+      text-align: center; color: var(--muted);
+      font-size: 0.82rem; font-style: italic; padding: 28px 0;
+    }
   </style>
 </head>
 <body>
@@ -423,6 +450,38 @@
 
   </div><!-- /container -->
 
+  <!-- ── Charts / Analytics ── -->
+  <div class="charts-section" id="chartsSection" style="display:none">
+    <div class="container">
+      <div class="section-divider"><span>Weekly Overview</span></div>
+    </div>
+    <div class="charts-grid">
+
+      <div class="card">
+        <div class="card-title">Actual vs Target</div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chartBar"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Time Distribution</div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chartDonut"></canvas>
+          <div class="chart-empty" id="chartDonutEmpty" style="display:none">No sessions logged yet</div>
+        </div>
+      </div>
+
+      <div class="card chart-card-trend">
+        <div class="card-title">6-Week Trend</div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chartTrend"></canvas>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <script>
     // ═══════════════════════════════════════════════════════════════════════════
     // Constants
@@ -474,6 +533,8 @@
 
     let _dbSaveTimer  = null;
     let _lastSavedAt  = null;  // ISO timestamp of our last saveToDb write
+    let _charts       = { bar: null, donut: null, trend: null };
+    let _historyData  = [];    // [{ week: 'YYYY-MM-DD', total: number }] last 6 weeks
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Helpers
@@ -650,6 +711,7 @@
       await loadFromDb();
       subscribeSelf();
       await loadRoom();
+      loadHistoryData(); // fire-and-forget: populates _historyData and re-renders trend
       renderAuthBar();
       render();
       renderRoomSection();
@@ -816,6 +878,227 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // Charts
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function initChartDefaults() {
+      if (!window.Chart) return;
+      Chart.defaults.font.family = "system-ui, -apple-system, 'Segoe UI', sans-serif";
+      Chart.defaults.color       = '#8C8070';
+    }
+
+    async function loadHistoryData() {
+      if (!auth.user) { renderTrendChart(); return; }
+
+      const weeks = [];
+      for (let i = 5; i >= 0; i--) weeks.push(weekOffset(getWeekStart(), -i));
+
+      const { data } = await sb
+        .from('planner_data')
+        .select('week_start, sessions')
+        .eq('user_id', auth.user.id)
+        .in('week_start', weeks);
+
+      _historyData = weeks.map(w => ({
+        week:  w,
+        total: (data?.find(r => r.week_start === w)?.sessions ?? [])
+               .reduce((sum, s) => sum + s.hours, 0),
+      }));
+      renderTrendChart();
+    }
+
+    function renderBarChart() {
+      const canvas = document.getElementById('chartBar');
+      if (!canvas || !window.Chart) return;
+      if (_charts.bar) { _charts.bar.destroy(); _charts.bar = null; }
+
+      const acts    = state.activities;
+      const targets = acts.map(a => parseFloat(a.target) || 0);
+      const actuals = acts.map(a =>
+        state.sessions.filter(s => s.activityId === a.id)
+                      .reduce((sum, s) => sum + s.hours, 0));
+
+      // Red if actual exceeds a set target
+      const actualBg     = acts.map((a, i) =>
+        (targets[i] > 0 && actuals[i] > targets[i]) ? 'rgba(139,58,42,0.72)' : (a.color + 'BF'));
+      const actualBorder = acts.map((a, i) =>
+        (targets[i] > 0 && actuals[i] > targets[i]) ? '#8B3A2A' : a.color);
+
+      // Grow height with activity count
+      const wrap = canvas.closest('.chart-canvas-wrap');
+      if (wrap) wrap.style.height = Math.max(120, acts.length * 54 + 36) + 'px';
+
+      _charts.bar = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: acts.map(a => a.name),
+          datasets: [
+            {
+              label:           'Target',
+              data:            targets,
+              backgroundColor: acts.map(a => a.color + '28'),
+              borderColor:     acts.map(a => a.color + '70'),
+              borderWidth:     1,
+              borderRadius:    3,
+            },
+            {
+              label:           'Actual',
+              data:            actuals,
+              backgroundColor: actualBg,
+              borderColor:     actualBorder,
+              borderWidth:     1,
+              borderRadius:    3,
+            },
+          ],
+        },
+        options: {
+          indexAxis:           'y',
+          responsive:          true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { padding: 14, boxWidth: 10, boxHeight: 10, font: { size: 11 } } },
+            tooltip: { callbacks: { label: item => ` ${fmtHours(item.raw)}` } },
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              grid:  { color: '#E8E3DC' },
+              ticks: { callback: v => v + 'h', font: { size: 10 } },
+            },
+            y: {
+              grid:  { display: false },
+              ticks: { font: { size: 11 } },
+            },
+          },
+        },
+      });
+    }
+
+    function renderDonutChart() {
+      const canvas = document.getElementById('chartDonut');
+      const empty  = document.getElementById('chartDonutEmpty');
+      if (!canvas || !window.Chart) return;
+      if (_charts.donut) { _charts.donut.destroy(); _charts.donut = null; }
+
+      const withSess = state.activities
+        .map(a => ({
+          a,
+          total: state.sessions.filter(s => s.activityId === a.id)
+                               .reduce((sum, s) => sum + s.hours, 0),
+        }))
+        .filter(x => x.total > 0);
+
+      const hasData = withSess.length > 0;
+      canvas.style.display = hasData ? '' : 'none';
+      if (empty) empty.style.display = hasData ? 'none' : '';
+      if (!hasData) return;
+
+      const grandTotal = withSess.reduce((s, x) => s + x.total, 0);
+
+      _charts.donut = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+          labels:   withSess.map(x => x.a.name),
+          datasets: [{
+            data:            withSess.map(x => x.total),
+            backgroundColor: withSess.map(x => x.a.color + 'CC'),
+            borderColor:     withSess.map(x => x.a.color),
+            borderWidth:     1.5,
+            hoverOffset:     5,
+          }],
+        },
+        options: {
+          responsive:  true,
+          aspectRatio: 1.4,
+          cutout:      '62%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels:   { padding: 12, boxWidth: 10, boxHeight: 10, font: { size: 11 } },
+            },
+            tooltip: {
+              callbacks: {
+                label: item => {
+                  const pct = grandTotal > 0 ? Math.round(item.raw / grandTotal * 100) : 0;
+                  return ` ${fmtHours(item.raw)} · ${pct}%`;
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    function renderTrendChart() {
+      const canvas = document.getElementById('chartTrend');
+      if (!canvas || !window.Chart) return;
+      if (_charts.trend) { _charts.trend.destroy(); _charts.trend = null; }
+
+      const cw = getWeekStart();
+      let display;
+
+      if (_historyData.length) {
+        // Override the current week's entry with live session data
+        const cwTotal = isCurrentWeek()
+          ? state.sessions.reduce((s, x) => s + x.hours, 0)
+          : (_historyData.find(d => d.week === cw)?.total ?? 0);
+        display = _historyData.map(d =>
+          d.week === cw ? { ...d, total: cwTotal } : d);
+      } else {
+        // Not logged in — show skeleton with current week only
+        const weeks = [];
+        for (let i = 5; i >= 0; i--) weeks.push(weekOffset(cw, -i));
+        display = weeks.map(w => ({
+          week:  w,
+          total: w === state.weekStart
+            ? state.sessions.reduce((s, x) => s + x.hours, 0) : 0,
+        }));
+      }
+
+      _charts.trend = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: display.map(d => {
+            const [y, m, day] = d.week.split('-').map(Number);
+            return new Date(y, m-1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          }),
+          datasets: [{
+            label:               'Total hours',
+            data:                display.map(d => d.total),
+            borderColor:         '#5C6B3A',
+            backgroundColor:     'rgba(92,107,58,0.09)',
+            fill:                true,
+            tension:             0.35,
+            pointBackgroundColor: '#5C6B3A',
+            pointBorderColor:    '#FEFCF8',
+            pointBorderWidth:    2,
+            pointRadius:         4,
+            pointHoverRadius:    6,
+          }],
+        },
+        options: {
+          responsive:  true,
+          aspectRatio: 2.4,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: item => ` ${fmtHours(item.raw)}` } },
+          },
+          scales: {
+            x: {
+              grid:  { color: '#E8E3DC' },
+              ticks: { font: { size: 10 }, maxRotation: 0 },
+            },
+            y: {
+              beginAtZero: true,
+              grid:  { color: '#E8E3DC' },
+              ticks: { callback: v => v + 'h', font: { size: 10 } },
+            },
+          },
+        },
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // Render — own data
     // ═══════════════════════════════════════════════════════════════════════════
 
@@ -825,6 +1108,14 @@
       renderStats();
       renderSessionTypeDropdown();
       renderSessions();
+      // Charts — only shown when there are activities
+      const hasActivities = state.activities.length > 0;
+      document.getElementById('chartsSection').style.display = hasActivities ? '' : 'none';
+      if (hasActivities) {
+        renderBarChart();
+        renderDonutChart();
+        renderTrendChart();
+      }
     }
 
     function renderAuthBar() {
@@ -1159,6 +1450,7 @@
 
     document.getElementById('sessionDate').value = todayStr();
     loadLocal();
+    initChartDefaults();
     render();
     initAuth(); // async — updates auth bar + loads cloud data after
 
