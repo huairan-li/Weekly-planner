@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = '20260302-001';
 const CACHE_NAME    = `weekly-planner-${CACHE_VERSION}`;
 
 const LOCAL_ASSETS = [
