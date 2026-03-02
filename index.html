@@ -648,21 +648,22 @@
 
     async function loadFromDb() {
       if (!auth.user) return;
-      const { data } = await sb
+      const { data, error } = await sb
         .from('planner_data')
         .select('activities, sessions')
         .eq('user_id', auth.user.id)
         .eq('week_start', state.weekStart)
         .maybeSingle();
 
+      if (error) { console.error('loadFromDb:', error); return; }
+
       if (data) {
+        // Cloud data found — always takes precedence over local state
         state.activities = data.activities ?? state.activities;
         state.sessions   = data.sessions   ?? [];
-      } else if (isCurrentWeek()) {
-        // No cloud data yet for current week — upload localStorage state
-        await saveToDb();
       }
-      // else: past week with no record — leave state as-is (empty sessions)
+      // No cloud data for this week → sessions stay as cleared by caller;
+      // new sessions will be written to cloud on first save() call.
       if (isCurrentWeek()) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       }
@@ -708,6 +709,7 @@
         avatar_url: meta.avatar_url || null,
       }, { onConflict: 'id' });
 
+      state.sessions = []; // clear local sessions so cloud data always wins
       await loadFromDb();
       subscribeSelf();
       await loadRoom();
@@ -918,11 +920,10 @@
         state.sessions.filter(s => s.activityId === a.id)
                       .reduce((sum, s) => sum + s.hours, 0));
 
-      // Red if actual exceeds a set target
+      // Red if actual exceeds a set target; otherwise use the activity's exact color
       const actualBg     = acts.map((a, i) =>
-        (targets[i] > 0 && actuals[i] > targets[i]) ? 'rgba(139,58,42,0.72)' : (a.color + 'BF'));
-      const actualBorder = acts.map((a, i) =>
         (targets[i] > 0 && actuals[i] > targets[i]) ? '#8B3A2A' : a.color);
+      const actualBorder = actualBg; // border matches fill for solid appearance
 
       // Grow height with activity count
       const wrap = canvas.closest('.chart-canvas-wrap');
@@ -1001,9 +1002,9 @@
           labels:   withSess.map(x => x.a.name),
           datasets: [{
             data:            withSess.map(x => x.total),
-            backgroundColor: withSess.map(x => x.a.color + 'CC'),
-            borderColor:     withSess.map(x => x.a.color),
-            borderWidth:     1.5,
+            backgroundColor: withSess.map(x => x.a.color),
+            borderColor:     '#FEFCF8',
+            borderWidth:     2,
             hoverOffset:     5,
           }],
         },
